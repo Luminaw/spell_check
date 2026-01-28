@@ -1,0 +1,7 @@
+
+[files]
+include = ["src/**/*.rs", "*.md"]
+exclude = ["target/**"]
+
+[dictionary]
+extra_words = ["rust", "tokio", "serde"]

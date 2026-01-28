@@ -1,0 +1,6 @@
+[files]
+include = ["**/*.go"]
+exclude = ["**/vendor/**", "**/bin/**"]
+
+[dictionary]
+extra_words = ["golang", "goroutine", "mutex", "struct", "interface", "chan"]

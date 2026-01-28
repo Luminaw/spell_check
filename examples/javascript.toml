@@ -1,0 +1,6 @@
+[files]
+include = ["**/*.{js,ts,jsx,tsx}"]
+exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**"]
+
+[dictionary]
+extra_words = ["react", "typescript", "nextjs", "vercel", "webpack", "babel"]

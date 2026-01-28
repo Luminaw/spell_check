@@ -1,0 +1,6 @@
+[files]
+include = ["**/*.py"]
+exclude = ["**/__pycache__/**", "**/.venv/**", "**/.pytest_cache/**"]
+
+[dictionary]
+extra_words = ["django", "flask", "numpy", "pandas", "pytest"]

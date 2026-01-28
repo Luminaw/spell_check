@@ -1,0 +1,6 @@
+[files]
+include = ["**/*.{c,cpp,h,hpp}"]
+exclude = ["**/build/**", "**/CMakeFiles/**", "**/bin/**", "**/obj/**"]
+
+[dictionary]
+extra_words = ["cmake", "gcc", "clang", "llvm", "const", "constexpr", "nullptr"]
