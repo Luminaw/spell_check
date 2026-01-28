@@ -43,18 +43,17 @@ impl Dictionary {
 
     pub fn contains(&self, word: &str) -> bool {
         let word_lower = word.to_lowercase();
-        // Check exact match
-        if self.words.contains(&word_lower) {
-            return true;
-        }
-
-        // Handle common suffixes or variations if needed, 
-        // but for a basic spellchecker, exact match in lowercase is the baseline.
-        false
+        self.words.contains(&word_lower)
     }
 
     pub fn count(&self) -> usize {
         self.words.len()
+    }
+}
+
+impl Default for Dictionary {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

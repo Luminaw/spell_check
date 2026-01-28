@@ -33,8 +33,8 @@ pub async fn run() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Check { path } => {
-            let config_path = if let Some(cfg) = cli.config {
-                cfg
+            let config_path = if let Some(cfg) = cli.config.as_ref() {
+                cfg.clone()
             } else {
                 path.join("spellcheck.toml")
             };
@@ -43,14 +43,16 @@ pub async fn run() -> anyhow::Result<()> {
             
             if config_path.exists() {
                 println!("{} Using config: {}", "info".blue(), config_path.display());
+            } else if cli.config.is_none() {
+                // Only show this if they didn't specify a config that doesn't exist
             } else {
-                println!("{} No config found at {:?}, using defaults.", "info".blue(), config_path);
+                println!("{} Config not found at {:?}, using defaults.", "warn".yellow(), config_path);
             }
 
             let mut dictionary = Dictionary::new();
             
             // Load embedded dictionary
-            let default_words = include_str!("../../resources/words.txt");
+            let default_words = include_str!("../resources/words.txt");
             for line in default_words.lines() {
                 dictionary.add_word(line.trim());
             }
@@ -67,36 +69,58 @@ pub async fn run() -> anyhow::Result<()> {
             let mut rx = engine.run(path);
 
             let mut count = 0;
-            while let Some(error) = rx.recv().await {
-                count += 1;
-                println!(
-                    "{} in {}:{}:{}: {}",
-                    "Error".red().bold(),
-                    error.file.display().to_string().cyan(),
-                    error.line.to_string().yellow(),
-                    error.col.to_string().yellow(),
-                    error.word.bold()
-                );
-                println!("  | {}", error.context.trim());
-                println!("  | {:width$}^", "", width = error.col - 1);
+            let mut errors = 0;
+
+            while let Some(res) = rx.recv().await {
+                match res {
+                    Ok(error) => {
+                        count += 1;
+                        println!(
+                            "{} in {}:{}:{}: {}",
+                            "Error".red().bold(),
+                            error.file.display().to_string().cyan(),
+                            error.line.to_string().yellow(),
+                            error.col.to_string().yellow(),
+                            error.word.bold()
+                        );
+                        println!("  | {}", error.context.trim());
+                        let col = error.col;
+                        if col > 0 {
+                           println!("  | {:width$}^", "", width = col - 1);
+                        }
+                    }
+                    Err(e) => {
+                        errors += 1;
+                        eprintln!("{} {}", "error".red().bold(), e);
+                    }
+                }
             }
 
             if count == 0 {
-                println!("{}", "Perfect spelling! No errors found.".green().bold());
+                if errors == 0 {
+                    println!("{}", "Perfect spelling! No errors found.".green().bold());
+                } else {
+                    println!("{} Completed with {} processing errors.", "info".blue(), errors);
+                }
             } else {
                 println!("\nFound {} spelling errors.", count);
+                if errors > 0 {
+                    println!("(And {} processing errors)", errors);
+                }
                 std::process::exit(1);
             }
         }
         Commands::Init => {
-            let default_config = "
-[files]
-include = [\"src/**/*.rs\", \"*.md\"]
-exclude = [\"target/**\"]
+            let default_config = r#"[files]
+include = ["src/**/*.rs", "*.md"]
+exclude = ["target/**"]
 
 [dictionary]
-extra_words = [\"rust\", \"tokio\", \"serde\"]
-";
+extra_words = ["rust", "tokio", "serde"]
+
+[ignore]
+words = []
+"#;
             std::fs::write("spellcheck.toml", default_config)?;
             println!("Created spellcheck.toml");
         }

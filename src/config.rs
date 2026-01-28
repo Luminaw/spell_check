@@ -1,9 +1,7 @@
-pub mod schema;
-
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-pub use schema::Config;
+use crate::config_schema::Config;
 
 pub fn load_config(path: &Path) -> Result<Config> {
     if !path.exists() {
