@@ -44,7 +44,7 @@ fn test_cli_check_proj1() {
     
     // Verify specific errors are found
     assert!(stdout.contains("occurance"), "Should have found 'occurance'");
-    // sick of this panicing, we're skipping it because the above test should be enough .
+    // sick of this panicing, we're skipping it because the above test should be enough.
     // assert!(stdout.contains("referance"), "Should have found 'referance'. STDOUT: {}", stdout);
 }
 
