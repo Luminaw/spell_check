@@ -57,11 +57,12 @@ impl Engine {
     }
 
     pub fn run(&self, path: PathBuf) -> mpsc::Receiver<SpellError> {
+        let scan_root = path.clone();
         let (tx, rx) = mpsc::channel(100);
         let inner = self.inner.clone();
 
         tokio::spawn(async move {
-            let mut walker = WalkBuilder::new(path);
+            let mut walker = WalkBuilder::new(&scan_root);
             walker.add_custom_ignore_filename(".spellcheckignore");
             let walker = walker.build();
 
@@ -69,14 +70,17 @@ impl Engine {
                 match result {
                     Ok(entry) => {
                         if entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
-                            let path = entry.path().to_path_buf();
+                            let entry_path = entry.path().to_path_buf();
                             let tx = tx.clone();
                             let inner = inner.clone();
                             
-                            if inner.should_check(&path) {
+                            // Make path relative to scan root for glob matching
+                            let relative_path = entry_path.strip_prefix(&scan_root).unwrap_or(&entry_path);
+                            
+                            if inner.should_check(relative_path) {
                                 tokio::spawn(async move {
-                                    if let Err(e) = Self::check_file(&path, &inner.dictionary, tx).await {
-                                        eprintln!("Error checking {}: {}", path.display(), e);
+                                    if let Err(e) = Self::check_file(&entry_path, &inner.dictionary, tx).await {
+                                        eprintln!("Error checking {}: {}", entry_path.display(), e);
                                     }
                                 });
                             }
@@ -170,30 +174,48 @@ mod tests {
         let words = Engine::extract_words(content);
         let word_list: Vec<&str> = words.into_iter().map(|(_, w)| w).collect();
         assert_eq!(word_list, vec!["Hello", "world", "It's", "test's", "line"]);
+
+        let code = "let y = \"referance\";";
+        let words = Engine::extract_words(code);
+        let word_list: Vec<&str> = words.into_iter().map(|(_, w)| w).collect();
+        assert!(word_list.contains(&"referance"));
     }
 
     #[test]
     fn test_should_check() {
         let mut config = Config::default();
-        config.files.include = vec!["src/**/*.rs".to_string()];
+        config.files.include = vec!["src/**/*.rs".to_string(), "README.md".to_string()];
         config.files.exclude = vec!["**/temp.rs".to_string()];
         
-        // We need a dictionary to create an engine
         let dict = Dictionary::new();
         let engine = Engine::new(config, dict);
 
         assert!(engine.inner.should_check(Path::new("src/main.rs")));
-        assert!(!engine.inner.should_check(Path::new("README.md")));
+        assert!(engine.inner.should_check(Path::new("./src/main.rs")));
+        assert!(engine.inner.should_check(Path::new("README.md")));
+        assert!(engine.inner.should_check(Path::new("./README.md")));
+        assert!(!engine.inner.should_check(Path::new("docs/index.md")));
         assert!(!engine.inner.should_check(Path::new("src/temp.rs")));
     }
 }
 
 impl EngineInner {
     fn should_check(&self, path: &Path) -> bool {
-        if !self.include_set.is_match(path) {
+        // Normalize path to forward slashes
+        let path_str = path.to_string_lossy().replace('\\', "/");
+        
+        // If empty or ".", it's the root file being scanned directly
+        if path_str.is_empty() || path_str == "." {
+            return true;
+        }
+
+        // Strip leading "./" if present
+        let normalized = path_str.trim_start_matches("./");
+        
+        if !self.include_set.is_match(normalized) {
             return false;
         }
-        if self.exclude_set.is_match(path) {
+        if self.exclude_set.is_match(normalized) {
             return false;
         }
         true
