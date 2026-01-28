@@ -65,7 +65,7 @@ pub async fn run() -> anyhow::Result<()> {
                 dictionary.load_from_file(dict_path)?;
             }
 
-            let engine = Engine::new(config, dictionary);
+            let engine = Engine::try_new(config, dictionary)?;
             let mut rx = engine.run(path);
 
             let mut count = 0;

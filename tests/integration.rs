@@ -51,7 +51,7 @@ fn test_cli_check_proj1() {
 #[test]
 fn test_cli_init() {
     let bin = get_bin_path();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let mut cmd = Command::new(bin);
     cmd.arg("init");
     cmd.current_dir(temp_dir.path());

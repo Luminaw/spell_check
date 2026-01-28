@@ -29,31 +29,29 @@ pub struct SpellError {
 }
 
 impl Engine {
-    pub fn new(config: Config, dictionary: Dictionary) -> Self {
+    pub fn try_new(config: Config, dictionary: Dictionary) -> Result<Self> {
         let mut include_builder = GlobSetBuilder::new();
         for pattern in &config.files.include {
-            if let Ok(glob) = Glob::new(pattern) {
-                include_builder.add(glob);
-            }
+            let glob = Glob::new(pattern).with_context(|| format!("Invalid include glob pattern: {}", pattern))?;
+            include_builder.add(glob);
         }
-        let include_set = include_builder.build().unwrap_or_else(|_| GlobSet::empty());
+        let include_set = include_builder.build().context("Failed to build include glob set")?;
 
         let mut exclude_builder = GlobSetBuilder::new();
         for pattern in &config.files.exclude {
-            if let Ok(glob) = Glob::new(pattern) {
-                exclude_builder.add(glob);
-            }
+            let glob = Glob::new(pattern).with_context(|| format!("Invalid exclude glob pattern: {}", pattern))?;
+            exclude_builder.add(glob);
         }
-        let exclude_set = exclude_builder.build().unwrap_or_else(|_| GlobSet::empty());
+        let exclude_set = exclude_builder.build().context("Failed to build exclude glob set")?;
 
-        Self {
+        Ok(Self {
             inner: Arc::new(EngineInner {
                 config: Arc::new(config),
                 dictionary: Arc::new(dictionary),
                 include_set,
                 exclude_set,
             }),
-        }
+        })
     }
 
     pub fn run(&self, path: PathBuf) -> mpsc::Receiver<Result<SpellError, String>> {
@@ -71,11 +69,11 @@ impl Engine {
             for result in walker {
                 match result {
                     Ok(entry) => {
-                        if entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
+                        if entry.file_type().map(|ft| ft.is_file()).expect("Failed to get file type") {
                             let entry_path = entry.path().to_path_buf();
                             
                             // Make path relative to scan root for glob matching
-                            let relative_path = entry_path.strip_prefix(&scan_root).unwrap_or(&entry_path);
+                            let relative_path = entry_path.strip_prefix(&scan_root).expect("Failed to get relative path");
                             
                             if inner.should_check(relative_path) {
                                 let tx = tx.clone();
@@ -231,13 +229,13 @@ mod tests {
     }
 
     #[test]
-    fn test_should_check() {
+    fn test_should_check() -> anyhow::Result<()> {
         let mut config = Config::default();
         config.files.include = vec!["src/**/*.rs".to_string(), "README.md".to_string()];
         config.files.exclude = vec!["**/temp.rs".to_string()];
         
         let dict = Dictionary::new();
-        let engine = Engine::new(config, dict);
+        let engine = Engine::try_new(config, dict)?;
 
         assert!(engine.inner.should_check(Path::new("src/main.rs")));
         assert!(engine.inner.should_check(Path::new("./src/main.rs")));
@@ -245,5 +243,6 @@ mod tests {
         assert!(engine.inner.should_check(Path::new("./README.md")));
         assert!(!engine.inner.should_check(Path::new("docs/index.md")));
         assert!(!engine.inner.should_check(Path::new("src/temp.rs")));
+        Ok(())
     }
 }
