@@ -1,8 +1,13 @@
+//! Utilities for loading and managing the spell checker configuration.
+
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use crate::config_schema::Config;
 
+/// Loads a `Config` from the specified path.
+///
+/// If the file does not exist, it returns the default configuration.
 pub fn load_config(path: &Path) -> Result<Config> {
     if !path.exists() {
         return Ok(Config::default());

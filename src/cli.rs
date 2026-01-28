@@ -1,3 +1,5 @@
+//! Command-line interface for the spell checker.
+
 use clap::{Parser, Subcommand};
 use crate::config::load_config;
 use crate::dictionary::Dictionary;
@@ -5,9 +7,11 @@ use crate::engine::Engine;
 use std::path::PathBuf;
 use colored::*;
 
+/// The command-line interface structure.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
+    /// Subcommand to execute.
     #[command(subcommand)]
     pub command: Commands,
 
@@ -16,18 +20,20 @@ pub struct Cli {
     pub config: Option<PathBuf>,
 }
 
+/// Commands supported by the CLI.
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Check files for spelling errors
+    /// Check files for spelling errors.
     Check {
-        /// Files or directories to check
+        /// Files or directories to check (defaults to current directory).
         #[arg(default_value = ".")]
         path: PathBuf,
     },
-    /// Initialize a new spellcheck.toml file
+    /// Initialize a new default `spellcheck.toml` file.
     Init,
 }
 
+/// Parses command-line arguments and runs the specified command.
 pub async fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
 

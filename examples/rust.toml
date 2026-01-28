@@ -1,0 +1,21 @@
+[files]
+include = ["src/**/*.rs", "tests/**/*.rs", "examples/**/*.rs"]
+exclude = ["target/**", "Cargo.lock"]
+
+[dictionary]
+extra_words = [
+    "tokio",
+    "serde",
+    "anyhow",
+    "clap",
+    "globset",
+    "indicatif",
+    "structopt",
+    "rustc",
+    "cargo",
+    "async",
+    "await",
+]
+
+[ignore]
+words = ["TODO", "FIXME"]

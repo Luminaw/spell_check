@@ -1,3 +1,5 @@
+//! The core spell checking engine.
+
 use crate::config_schema::Config;
 use crate::dictionary::Dictionary;
 use anyhow::{Context, Result};
@@ -8,6 +10,9 @@ use tokio::sync::mpsc;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use tokio::task::JoinSet;
 
+/// The main spell-checking engine.
+///
+/// It coordinates file walking, word extraction, and dictionary lookups.
 pub struct Engine {
     inner: Arc<EngineInner>,
 }
@@ -19,16 +24,25 @@ struct EngineInner {
     exclude_set: GlobSet,
 }
 
+/// Represents a spelling error found in a file.
 #[derive(Debug, Clone)]
 pub struct SpellError {
+    /// The path to the file containing the error.
     pub file: PathBuf,
+    /// The 1-based line number where the error occurred.
     pub line: usize,
+    /// The 1-based column number where the word starts.
     pub col: usize,
+    /// The misspelled word.
     pub word: String,
+    /// The full content of the line containing the error.
     pub context: String,
 }
 
 impl Engine {
+    /// Attempts to create a new `Engine` instance.
+    ///
+    /// Validates the include/exclude glob patterns provided in the config.
     pub fn try_new(config: Config, dictionary: Dictionary) -> Result<Self> {
         let mut include_builder = GlobSetBuilder::new();
         for pattern in &config.files.include {
@@ -54,6 +68,10 @@ impl Engine {
         })
     }
 
+    /// Starts the spell-checking process for the given path.
+    ///
+    /// Returns an `mpsc::Receiver` that yields `SpellError`s or error messages
+    /// as strings as they are discovered.
     pub fn run(&self, path: PathBuf) -> mpsc::Receiver<Result<SpellError, String>> {
         let (tx, rx) = mpsc::channel(100);
         let inner = self.inner.clone();
@@ -154,6 +172,10 @@ impl Engine {
         Ok(())
     }
 
+    /// Extracts potential words from a string slice.
+    ///
+    /// Returns a list of (start_column, word) pairs. Handles apostrophes correctly
+    /// and ignores alphanumeric strings that contain numbers.
     fn extract_words(content: &str) -> Vec<(usize, &str)> {
         let mut words = Vec::new();
         let mut start = None;
